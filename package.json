@@ -2,13 +2,63 @@
   "name": "health-data-to-lynx",
   "version": "0.1.0",
   "type": "module",
-  "description": "Lynx + iOS HealthKit starter with one-click authorization and health snapshot reading.",
+  "description": "Lynx + iOS HealthKit bridge starter with one-click authorization and typed health snapshots.",
+  "keywords": [
+    "lynx",
+    "healthkit",
+    "ios",
+    "apple-health",
+    "health-data",
+    "bridge"
+  ],
+  "homepage": "https://github.com/PrimoPan/HealthDatatoLynx#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrimoPan/HealthDatatoLynx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PrimoPan/HealthDatatoLynx/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/npm/lib/index.js",
+  "module": "./dist/npm/lib/index.js",
+  "types": "./dist/npm/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/npm/lib/index.d.ts",
+      "import": "./dist/npm/lib/index.js"
+    },
+    "./ios/HealthKitBridge/HealthKitManager.swift": "./ios/HealthKitBridge/HealthKitManager.swift",
+    "./ios/HealthKitBridge/README.md": "./ios/HealthKitBridge/README.md",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/npm",
+    "ios/HealthKitBridge",
+    "docs",
+    "src/assets/lynx-logo.png",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "rspeedy build",
+    "build": "npm run build:web",
+    "build:web": "rspeedy build",
+    "build:npm": "tsc -p tsconfig.publish.json",
+    "clean:npm": "rm -rf dist/npm",
     "dev": "rspeedy dev",
     "format": "prettier --write .",
     "lint": "eslint .",
-    "preview": "rspeedy preview"
+    "preview": "rspeedy preview",
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "npm run clean:npm && npm run build:npm && npm run lint && npm run pack:check",
+    "release:patch": "npm version patch -m \"chore(release): %s\"",
+    "release:minor": "npm version minor -m \"chore(release): %s\"",
+    "release:major": "npm version major -m \"chore(release): %s\"",
+    "publish:public": "npm publish --access public"
   },
   "dependencies": {
     "@lynx-js/react": "^0.116.3"
@@ -31,9 +81,8 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.55.0"
   },
-  "engines": {
-    "node": ">=18"
-  },
   "private": false,
-  "license": "MIT"
+  "publishConfig": {
+    "access": "public"
+  }
 }

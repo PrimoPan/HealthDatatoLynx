@@ -69,6 +69,26 @@ npm run dev
 
 启动后，把 Lynx bundle 地址（示例：`http://<你的IP>:3000/main.lynx.bundle?fullscreen=true`）粘贴到 Lynx Explorer 中运行。
 
+## 作为 npm 包使用
+
+安装：
+
+```bash
+npm install health-data-to-lynx
+```
+
+导入：
+
+```ts
+import { authorizeHealthKit, loadHealthSnapshot, buildMockHealthSnapshot } from 'health-data-to-lynx';
+```
+
+发布导出位于 `package.json`：
+
+- ESM 入口：`dist/npm/lib/index.js`
+- 类型声明：`dist/npm/lib/index.d.ts`
+- iOS 原生桥接源码：`ios/HealthKitBridge/HealthKitManager.swift`
+
 ## iOS 原生接入
 
 请查看 `/ios/HealthKitBridge/README.md`。
@@ -111,6 +131,26 @@ npm run dev
 - [ ] Android Health Connect 适配器
 - [ ] 定时同步与后端上传示例
 - [ ] 后端存储与预警示例
+
+## 版本策略与发布
+
+- Patch（`0.1.x`）：缺陷修复，不改公开 API 契约。
+- Minor（`0.x+1.0`）：新增字段/能力，保持向后兼容。
+- Major（`x+1.0.0`）：存在破坏性变更。
+
+版本命令：
+
+```bash
+npm run release:patch
+npm run release:minor
+npm run release:major
+```
+
+发布命令：
+
+```bash
+npm publish --access public
+```
 
 ## License
 

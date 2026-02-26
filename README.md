@@ -70,6 +70,26 @@ npm run dev
 
 Then copy the Lynx bundle URL (for example `http://<your-ip>:3000/main.lynx.bundle?fullscreen=true`) into **Lynx Explorer**.
 
+## Use as an npm package
+
+Install:
+
+```bash
+npm install health-data-to-lynx
+```
+
+Import:
+
+```ts
+import { authorizeHealthKit, loadHealthSnapshot, buildMockHealthSnapshot } from 'health-data-to-lynx';
+```
+
+Publish-ready exports are defined in `package.json`:
+
+- ESM entry: `dist/npm/lib/index.js`
+- Types: `dist/npm/lib/index.d.ts`
+- iOS bridge source: `ios/HealthKitBridge/HealthKitManager.swift`
+
 ## iOS Native Integration
 
 See `/ios/HealthKitBridge/README.md`.
@@ -112,6 +132,26 @@ This project focuses on a **Lynx-first bridge** path, which is currently less co
 - [ ] Android Health Connect adapter
 - [ ] Scheduled sync + backend uploader
 - [ ] Example backend schema and alert pipeline
+
+## Release and version strategy
+
+- Patch (`0.1.x`): bug fixes, no API contract changes.
+- Minor (`0.x+1.0`): additive fields, new adapter capabilities, backward compatible.
+- Major (`x+1.0.0`): breaking API/type/schema changes.
+
+Commands:
+
+```bash
+npm run release:patch
+npm run release:minor
+npm run release:major
+```
+
+Publish:
+
+```bash
+npm publish --access public
+```
 
 ## License
 
