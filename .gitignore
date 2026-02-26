@@ -1,0 +1,36 @@
+# System
+.DS_Store
+Thumbs.db
+
+# Local env
+*.local
+*.log*
+.env
+.env.*
+.npmrc
+
+# Node / build outputs
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Tool caches
+.rspeedy/
+.cache/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# iOS / Xcode
+DerivedData/
+*.xcworkspace
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcuserstate
+*.ipa
+*.dSYM
+ios/Pods/
+ios/build/
