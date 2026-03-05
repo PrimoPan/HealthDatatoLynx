@@ -24,6 +24,7 @@ HealthDataToLynx 是一个开源起步项目，用最小实现把 **Apple Health
 
 - 快速搭建 Lynx 客户端界面；
 - 一键授权并读取 iOS 健康数据；
+- 与 `react-native-health` 保持 API 一致性；
 - 统一 TypeScript 数据类型约束；
 - 后续平滑扩展到华为/小米等数据源。
 
@@ -35,6 +36,7 @@ HealthDataToLynx 是一个开源起步项目，用最小实现把 **Apple Health
 - **默认包含血糖数据**（最新值 + 近7天序列）
 - 在 Lynx Explorer 下可使用 Mock 数据回退
 - 预留多厂商适配接口（adapter）
+- 提供 `react-native-health` 兼容层（`src/services/react-native-health.ts`）
 
 ## 技术栈
 
@@ -56,6 +58,7 @@ HealthDatatoLynx/
     App.tsx
     App.css
     services/health.ts
+    services/react-native-health.ts
     types/health.ts
     adapters/provider.ts
 ```
@@ -81,6 +84,24 @@ npm install health-data-to-lynx
 
 ```ts
 import { authorizeHealthKit, loadHealthSnapshot, buildMockHealthSnapshot } from 'health-data-to-lynx';
+```
+
+`react-native-health` 兼容调用示例：
+
+```ts
+import { HealthKit } from 'health-data-to-lynx';
+
+HealthKit.initHealthKit(
+  {
+    permissions: {
+      read: [HealthKit.Constants.Permissions.StepCount],
+      write: [],
+    },
+  },
+  (err, result) => {
+    // 与 react-native-health 一致的回调风格
+  },
+);
 ```
 
 发布导出位于 `package.json`：

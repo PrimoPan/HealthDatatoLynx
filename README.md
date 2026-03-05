@@ -24,6 +24,7 @@ It is designed for teams who want to:
 
 - ship Lynx UI quickly,
 - read real iOS health data with one tap,
+- keep API consistency with `react-native-health`,
 - keep a stable TypeScript data contract,
 - and later extend to Huawei/Xiaomi/other providers.
 
@@ -36,6 +37,7 @@ It is designed for teams who want to:
   - **Blood glucose included by default**
 - Mock data fallback for Lynx Explorer and early UI debugging
 - Clean adapter interface for future health providers
+- `react-native-health` compatibility layer (`src/services/react-native-health.ts`)
 
 ## Tech Stack
 
@@ -57,6 +59,7 @@ HealthDatatoLynx/
     App.tsx
     App.css
     services/health.ts
+    services/react-native-health.ts
     types/health.ts
     adapters/provider.ts
 ```
@@ -82,6 +85,24 @@ Import:
 
 ```ts
 import { authorizeHealthKit, loadHealthSnapshot, buildMockHealthSnapshot } from 'health-data-to-lynx';
+```
+
+`react-native-health` compatible usage:
+
+```ts
+import { HealthKit } from 'health-data-to-lynx';
+
+HealthKit.initHealthKit(
+  {
+    permissions: {
+      read: [HealthKit.Constants.Permissions.StepCount],
+      write: [],
+    },
+  },
+  (err, result) => {
+    // react-native-health style callback
+  },
+);
 ```
 
 Publish-ready exports are defined in `package.json`:

@@ -2,11 +2,13 @@
 
 This folder contains `HealthKitManager.swift`, a Swift native module for Lynx.
 
-It exposes 3 JS-callable methods:
+It exposes JS-callable methods:
 
 - `isHealthDataAvailable`
 - `requestAuthorization`
 - `getHealthSnapshot`
+- `executeHealthMethod` (react-native-health compatibility entry)
+- `executeHealthCommand` (optional capability command entry)
 
 ## 1. Add Swift file to your iOS Lynx host app
 
@@ -26,6 +28,7 @@ After registration, JS can call:
 NativeModules.HealthKitManager.isHealthDataAvailable(...)
 NativeModules.HealthKitManager.requestAuthorization(...)
 NativeModules.HealthKitManager.getHealthSnapshot(...)
+NativeModules.HealthKitManager.executeHealthMethod(...)
 ```
 
 ## 3. Enable HealthKit capability
@@ -63,3 +66,20 @@ Current bridge returns:
 - HealthKit data on iOS simulator is usually empty.
 - Use Lynx mock mode from JS for UI development.
 - Validate real HealthKit data on physical devices.
+
+## 7. react-native-health consistency
+
+The Lynx JS compatibility entry is:
+
+- `/src/services/react-native-health.ts`
+
+It aligns method names and constants with:
+
+- [agencyenterprise/react-native-health](https://github.com/agencyenterprise/react-native-health)
+
+Current native unsupported APIs:
+
+- `getElectrocardiogramSamples`
+- `getHeartbeatSeriesSamples`
+- `getWorkoutRouteSamples`
+- Observer/event push APIs (`setObserver`, `initStepCountObserver`)
