@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>Lynx + iOS HealthKit starter for cross-platform health apps.</strong>
+  <strong>Lynx health SDK starter with Apple HealthKit + Xiaomi provider support.</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ## Overview
 
-HealthDataToLynx is an open-source starter project that bridges **Apple HealthKit** data into a **Lynx** UI with a minimal and practical architecture.
+HealthDataToLynx is an open-source starter project that bridges health data providers (currently **Apple HealthKit** and extensible **Xiaomi Health**) into a **Lynx** UI with a minimal and practical architecture.
 
 It is designed for teams who want to:
 
@@ -32,10 +32,14 @@ It is designed for teams who want to:
 
 - One-click **HealthKit authorization** in Lynx UI
 - One-click **health snapshot reading** via Swift native module
+- Built-in **Xiaomi Health provider adapter**:
+  - supports native `XiaomiHealthManager` bridge when available
+  - supports custom hook-based connector for your own Xiaomi backend
 - Complete typed payload for key metrics:
   - Activity, sleep, heart, SpO2, workouts
   - **Blood glucose included by default**
 - Mock data fallback for Lynx Explorer and early UI debugging
+- Unified client API: `createHealthClient` / `quickReadHealthSnapshot`
 - Clean adapter interface for future health providers
 - `react-native-health` compatibility layer (`src/services/react-native-health.ts`)
 
@@ -58,10 +62,14 @@ HealthDatatoLynx/
   src/
     App.tsx
     App.css
+    lib/client.ts
     services/health.ts
+    services/xiaomi-health.ts
     services/react-native-health.ts
     types/health.ts
     adapters/provider.ts
+    adapters/apple-healthkit.ts
+    adapters/xiaomi-health.ts
 ```
 
 ## Quick Start
@@ -81,10 +89,35 @@ Install:
 npm install health-data-to-lynx
 ```
 
-Import:
+One-line read (recommended):
 
 ```ts
-import { authorizeHealthKit, loadHealthSnapshot, buildMockHealthSnapshot } from 'health-data-to-lynx';
+import { quickReadHealthSnapshot, readHealthSnapshot } from 'health-data-to-lynx';
+
+const snapshot = await quickReadHealthSnapshot({
+  provider: 'auto', // auto resolves Apple first, then Xiaomi
+});
+
+// Alias with the same behavior:
+const snapshot2 = await readHealthSnapshot({ provider: 'apple-healthkit' });
+```
+
+Explicit provider client (Apple or Xiaomi):
+
+```ts
+import { createHealthClient } from 'health-data-to-lynx';
+
+const client = createHealthClient({
+  provider: 'xiaomi-health',
+  xiaomi: {
+    // Replace with your own connector if Xiaomi data is managed by your backend.
+    isAvailable: async () => true,
+    requestAuthorization: async () => true,
+    readSnapshot: async () => await getXiaomiSnapshotFromBackend(),
+  },
+});
+
+const snapshot = await client.readWithAuthorization();
 ```
 
 `react-native-health` compatible usage:
@@ -111,6 +144,12 @@ Publish-ready exports are defined in `package.json`:
 - Types: `dist/npm/lib/index.d.ts`
 - iOS bridge source: `ios/HealthKitBridge/HealthKitManager.swift`
 
+Backward-compatible APIs are still available:
+
+- `authorizeHealthKit`
+- `loadHealthSnapshot`
+- `buildMockHealthSnapshot`
+
 ## iOS Native Integration
 
 See `/ios/HealthKitBridge/README.md`.
@@ -123,6 +162,20 @@ Minimum setup:
 4. Add Info.plist usage descriptions:
    - `NSHealthShareUsageDescription`
    - `NSHealthUpdateUsageDescription` (if you write data later)
+
+## Xiaomi Integration
+
+You can integrate Xiaomi in two ways:
+
+1. Native Lynx bridge:
+   - register a native module named `XiaomiHealthManager`
+   - expose methods aligned with HealthKit bridge style:
+     - `isHealthDataAvailable`
+     - `requestAuthorization`
+     - `getHealthSnapshot`
+2. Hook-based backend connector (no native module required):
+   - pass `xiaomi.isAvailable / requestAuthorization / readSnapshot` into `createHealthClient`
+   - keep Xiaomi OAuth/token exchange in backend for better security
 
 ## Health Data Contract (Highlights)
 
@@ -149,7 +202,7 @@ This project focuses on a **Lynx-first bridge** path, which is currently less co
 ## Roadmap
 
 - [ ] Huawei Health adapter
-- [ ] Xiaomi Health adapter
+- [x] Xiaomi Health adapter (native bridge + custom connector hooks)
 - [ ] Android Health Connect adapter
 - [ ] Scheduled sync + backend uploader
 - [ ] Example backend schema and alert pipeline

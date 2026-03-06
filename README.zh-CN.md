@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>面向跨端健康应用的 Lynx + iOS HealthKit 启动项目。</strong>
+  <strong>面向跨端健康应用的 Lynx 健康 SDK 启动项目（支持 Apple + Xiaomi）。</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ## 项目简介
 
-HealthDataToLynx 是一个开源起步项目，用最小实现把 **Apple HealthKit** 的健康数据桥接到 **Lynx** 界面层。
+HealthDataToLynx 是一个开源起步项目，用最小实现把多健康数据源（当前支持 **Apple HealthKit**，并可扩展 **Xiaomi Health**）桥接到 **Lynx** 界面层。
 
 它适合以下目标：
 
@@ -32,9 +32,13 @@ HealthDataToLynx 是一个开源起步项目，用最小实现把 **Apple Health
 
 - Lynx 页面一键请求 HealthKit 授权
 - Lynx 页面一键读取健康快照（Swift 原生模块）
+- 内置 **小米健康适配器**：
+  - 可直接对接原生 `XiaomiHealthManager` 模块
+  - 也支持通过 Hook 注入你自己的小米后端拉取逻辑
 - 完整类型化数据结构：活动、睡眠、心脏、血氧、运动记录
 - **默认包含血糖数据**（最新值 + 近7天序列）
 - 在 Lynx Explorer 下可使用 Mock 数据回退
+- 统一客户端调用：`createHealthClient` / `quickReadHealthSnapshot`
 - 预留多厂商适配接口（adapter）
 - 提供 `react-native-health` 兼容层（`src/services/react-native-health.ts`）
 
@@ -57,10 +61,14 @@ HealthDatatoLynx/
   src/
     App.tsx
     App.css
+    lib/client.ts
     services/health.ts
+    services/xiaomi-health.ts
     services/react-native-health.ts
     types/health.ts
     adapters/provider.ts
+    adapters/apple-healthkit.ts
+    adapters/xiaomi-health.ts
 ```
 
 ## 快速开始
@@ -80,10 +88,35 @@ npm run dev
 npm install health-data-to-lynx
 ```
 
-导入：
+一键读取（推荐）：
 
 ```ts
-import { authorizeHealthKit, loadHealthSnapshot, buildMockHealthSnapshot } from 'health-data-to-lynx';
+import { quickReadHealthSnapshot, readHealthSnapshot } from 'health-data-to-lynx';
+
+const snapshot = await quickReadHealthSnapshot({
+  provider: 'auto', // 自动优先 Apple，再尝试 Xiaomi
+});
+
+// 同行为别名：
+const snapshot2 = await readHealthSnapshot({ provider: 'apple-healthkit' });
+```
+
+按 Provider 创建客户端（Apple / Xiaomi）：
+
+```ts
+import { createHealthClient } from 'health-data-to-lynx';
+
+const client = createHealthClient({
+  provider: 'xiaomi-health',
+  xiaomi: {
+    // 替换为你自己的小米数据连接器（通常走后端）。
+    isAvailable: async () => true,
+    requestAuthorization: async () => true,
+    readSnapshot: async () => await getXiaomiSnapshotFromBackend(),
+  },
+});
+
+const snapshot = await client.readWithAuthorization();
 ```
 
 `react-native-health` 兼容调用示例：
@@ -110,6 +143,12 @@ HealthKit.initHealthKit(
 - 类型声明：`dist/npm/lib/index.d.ts`
 - iOS 原生桥接源码：`ios/HealthKitBridge/HealthKitManager.swift`
 
+旧 API 仍兼容可用：
+
+- `authorizeHealthKit`
+- `loadHealthSnapshot`
+- `buildMockHealthSnapshot`
+
 ## iOS 原生接入
 
 请查看 `/ios/HealthKitBridge/README.md`。
@@ -122,6 +161,20 @@ HealthKit.initHealthKit(
 4. 在 Info.plist 中加入权限文案：
    - `NSHealthShareUsageDescription`
    - `NSHealthUpdateUsageDescription`（未来需要写入时再启用）
+
+## 小米健康接入
+
+支持两种接入方式：
+
+1. 原生 Lynx Bridge：
+   - 在宿主中注册名为 `XiaomiHealthManager` 的原生模块；
+   - 暴露与 HealthKit 风格一致的方法：
+     - `isHealthDataAvailable`
+     - `requestAuthorization`
+     - `getHealthSnapshot`
+2. Hook 注入后端连接器（无需原生模块）：
+   - 在 `createHealthClient` 里传入 `xiaomi.isAvailable / requestAuthorization / readSnapshot`
+   - 建议把小米 OAuth 与 token 管理放在后端，避免客户端泄露
 
 ## 健康数据字段（重点）
 
@@ -148,7 +201,7 @@ HealthKit.initHealthKit(
 ## 路线图
 
 - [ ] 华为健康适配器
-- [ ] 小米健康适配器
+- [x] 小米健康适配器（原生桥接 + 自定义连接器 Hook）
 - [ ] Android Health Connect 适配器
 - [ ] 定时同步与后端上传示例
 - [ ] 后端存储与预警示例

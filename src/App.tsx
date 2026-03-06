@@ -2,12 +2,12 @@ import { useMemo, useState } from '@lynx-js/react';
 
 import './App.css';
 import {
-  authorizeHealthKit,
   buildMockHealthSnapshot,
+  createHealthClient,
   isHealthKitNativeAvailable,
-  loadHealthSnapshot,
-} from './services/health.js';
-import type { HealthSnapshot, HealthTrendPoint } from './types/health.js';
+  isXiaomiHealthNativeAvailable,
+} from './lib/index.js';
+import type { HealthProviderId, HealthSnapshot, HealthTrendPoint } from './lib/index.js';
 
 type StatusLevel = 'info' | 'success' | 'error';
 
@@ -54,7 +54,22 @@ function getTopSeries(points?: HealthTrendPoint[], limit = 6): HealthTrendPoint[
 }
 
 export function App() {
-  const nativeAvailable = isHealthKitNativeAvailable();
+  const [providerId, setProviderId] = useState<HealthProviderId>('apple-healthkit');
+  const client = useMemo(
+    () =>
+      createHealthClient({
+        provider: providerId,
+        fallbackToMock: true,
+      }),
+    [providerId],
+  );
+  const nativeAvailable =
+    providerId === 'apple-healthkit'
+      ? isHealthKitNativeAvailable()
+      : providerId === 'xiaomi-health'
+        ? isXiaomiHealthNativeAvailable()
+        : false;
+  const providerLabel = providerId === 'apple-healthkit' ? 'Apple HealthKit' : 'Xiaomi Health';
 
   const [snapshot, setSnapshot] = useState<HealthSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
@@ -119,25 +134,21 @@ export function App() {
       return;
     }
     setLoading(true);
-    setStatus({ level: 'info', message: 'Requesting HealthKit permission...' });
+    setStatus({ level: 'info', message: `Requesting ${providerLabel} authorization...` });
 
     try {
-      const authorized = await authorizeHealthKit();
-      if (!authorized) {
-        setStatus({
-          level: 'error',
-          message:
-            'Authorization failed or native HealthKit module is unavailable. Use mock data in Lynx Explorer, or register HealthKitManager in your iOS host app.',
-        });
-        return;
-      }
-
-      const nextSnapshot = await loadHealthSnapshot(false);
+      const nextSnapshot = await client.readWithAuthorization();
       setSnapshot(nextSnapshot);
-      setStatus({ level: 'success', message: 'HealthKit data loaded successfully.' });
+      setStatus({
+        level: nextSnapshot.source === 'mock' ? 'info' : 'success',
+        message:
+          nextSnapshot.source === 'mock'
+            ? `${providerLabel} unavailable, fallback to mock snapshot.`
+            : `${providerLabel} snapshot loaded successfully.`,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      setStatus({ level: 'error', message: `Failed to load HealthKit snapshot: ${message}` });
+      setStatus({ level: 'error', message: `Failed to load ${providerLabel} snapshot: ${message}` });
     } finally {
       setLoading(false);
     }
@@ -148,8 +159,11 @@ export function App() {
       return;
     }
     const mock = buildMockHealthSnapshot();
-    setSnapshot(mock);
-    setStatus({ level: 'success', message: 'Mock snapshot loaded (all metrics included).' });
+    setSnapshot({
+      ...mock,
+      note: `Manual mock snapshot for ${providerLabel}. ${mock.note ?? ''}`.trim(),
+    });
+    setStatus({ level: 'success', message: `Mock snapshot loaded for ${providerLabel}.` });
   }
 
   return (
@@ -159,21 +173,42 @@ export function App() {
           <text className='badge'>Open Source Starter</text>
           <text className='title'>Health Data to Lynx</text>
           <text className='subtitle'>
-            One-click iOS HealthKit authorization and snapshot reading for Lynx apps.
+            One-click health authorization and snapshot reading for Lynx apps (Apple + Xiaomi).
           </text>
         </view>
 
         <view className='card'>
           <text className='section-title'>1. Authorize and Read</text>
+          <text className='section-text'>Provider</text>
+          <view className='provider-row'>
+            <view
+              className={`provider-btn ${providerId === 'apple-healthkit' ? 'active' : ''}`}
+              bindtap={() => setProviderId('apple-healthkit')}
+            >
+              <text className={`provider-text ${providerId === 'apple-healthkit' ? 'active' : ''}`}>
+                Apple HealthKit
+              </text>
+            </view>
+            <view
+              className={`provider-btn ${providerId === 'xiaomi-health' ? 'active' : ''}`}
+              bindtap={() => setProviderId('xiaomi-health')}
+            >
+              <text className={`provider-text ${providerId === 'xiaomi-health' ? 'active' : ''}`}>
+                Xiaomi Health
+              </text>
+            </view>
+          </view>
           <text className='section-text'>
-            Native bridge: {nativeAvailable ? 'Available' : 'Unavailable in current host'}
+            {providerLabel} native bridge: {nativeAvailable ? 'Available' : 'Unavailable in current host'}
           </text>
 
           <view
             className={`btn primary ${loading ? 'disabled' : ''}`}
             bindtap={onAuthorizeAndRead}
           >
-            <text className='btn-text'>{loading ? 'Loading...' : 'Authorize + Read HealthKit'}</text>
+            <text className='btn-text'>
+              {loading ? 'Loading...' : `Authorize + Read ${providerLabel}`}
+            </text>
           </view>
 
           <view className={`btn ghost ${loading ? 'disabled' : ''}`} bindtap={onLoadMock}>

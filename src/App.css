@@ -70,6 +70,36 @@
   line-height: 1.4;
 }
 
+.provider-row {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.provider-btn {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background-color: #f7f8ff;
+  padding: 10px 12px;
+}
+
+.provider-btn.active {
+  background-color: #dde2ff;
+  border-color: #8d99ff;
+}
+
+.provider-text {
+  font-size: 14px;
+  color: #4a548e;
+  font-weight: 600;
+}
+
+.provider-text.active {
+  color: #2b3380;
+}
+
 .btn {
   margin-top: 14px;
   border-radius: 14px;

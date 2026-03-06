@@ -112,8 +112,14 @@ export type HealthBodyData = {
   bodyMassSeriesLast30d?: HealthTrendPoint[];
 };
 
+export type HealthSnapshotSource =
+  | 'healthkit'
+  | 'xiaomi-health'
+  | 'huawei-health'
+  | 'mock';
+
 export type HealthSnapshot = {
-  source: 'healthkit' | 'mock';
+  source: HealthSnapshotSource;
   authorized: boolean;
   generatedAt: string;
   note?: string;

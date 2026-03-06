@@ -2,13 +2,16 @@
   "name": "health-data-to-lynx",
   "version": "0.1.0",
   "type": "module",
-  "description": "Lynx + iOS HealthKit bridge starter with one-click authorization and typed health snapshots.",
+  "description": "Lynx health SDK starter with Apple HealthKit + Xiaomi adapters and typed health snapshots.",
   "keywords": [
     "lynx",
     "healthkit",
+    "xiaomi-health",
     "ios",
+    "android",
     "apple-health",
     "health-data",
+    "health-sdk",
     "bridge"
   ],
   "homepage": "https://github.com/PrimoPan/HealthDatatoLynx#readme",
