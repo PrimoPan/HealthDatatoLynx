@@ -93,6 +93,13 @@ export function App() {
         value: `${toFixed(snapshot.oxygen?.bloodOxygenPercent, 1)} %`,
       },
       {
+        label: 'Blood Pressure',
+        value: `${toFixed(snapshot.heart?.systolicBloodPressureMmhg, 0)} / ${toFixed(
+          snapshot.heart?.diastolicBloodPressureMmhg,
+          0,
+        )} mmHg`,
+      },
+      {
         label: 'Blood Glucose',
         value: `${toFixed(snapshot.metabolic?.bloodGlucoseMgDl, 1)} mg/dL (${mgdlToMmol(
           snapshot.metabolic?.bloodGlucoseMgDl,
@@ -105,6 +112,10 @@ export function App() {
       {
         label: 'Sleep Apnea (30d)',
         value: `${toFixed(snapshot.sleep?.apnea?.eventCountLast30d, 0)} events`,
+      },
+      {
+        label: 'Alerts',
+        value: `${snapshot.alerts?.length ?? 0}`,
       },
     ];
   }, [snapshot]);

@@ -373,8 +373,20 @@ public final class HealthKitManager: NSObject, LynxModule {
     }
 
     group.enter()
+    queryLatestBloodPressure { result, _ in
+      heart.merge(result, uniquingKeysWith: { _, new in new })
+      group.leave()
+    }
+
+    group.enter()
     querySleepSummaryLast36Hours { result, error in
       setError(error)
+      sleep.merge(result, uniquingKeysWith: { _, new in new })
+      group.leave()
+    }
+
+    group.enter()
+    querySleepApneaSummaryLast30Days { result, _ in
       sleep.merge(result, uniquingKeysWith: { _, new in new })
       group.leave()
     }
@@ -2133,6 +2145,8 @@ public final class HealthKitManager: NSObject, LynxModule {
       .heartRateVariabilitySDNN,
       .oxygenSaturation,
       .bloodGlucose,
+      .bloodPressureSystolic,
+      .bloodPressureDiastolic,
     ]
 
     quantityIdentifiers.forEach { identifier in
@@ -2143,6 +2157,19 @@ public final class HealthKitManager: NSObject, LynxModule {
 
     if let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
       types.insert(sleepType)
+    }
+
+    if let bloodPressureType = HKCorrelationType.correlationType(forIdentifier: .bloodPressure) {
+      types.insert(bloodPressureType)
+    }
+
+    if #available(iOS 18.0, *) {
+      if let sleepApneaType = HKObjectType.categoryType(forIdentifier: .sleepApneaEvent) {
+        types.insert(sleepApneaType)
+      }
+      if let disturbancesType = HKObjectType.quantityType(forIdentifier: .appleSleepingBreathingDisturbances) {
+        types.insert(disturbancesType)
+      }
     }
 
     return types
@@ -2169,6 +2196,142 @@ public final class HealthKitManager: NSObject, LynxModule {
     }
 
     healthStore.execute(query)
+  }
+
+  private func queryLatestBloodPressure(
+    completion: @escaping ([String: Any], Error?) -> Void
+  ) {
+    guard let correlationType = HKCorrelationType.correlationType(forIdentifier: .bloodPressure),
+          let systolicType = HKQuantityType.quantityType(forIdentifier: .bloodPressureSystolic),
+          let diastolicType = HKQuantityType.quantityType(forIdentifier: .bloodPressureDiastolic)
+    else {
+      completion([:], nil)
+      return
+    }
+
+    let unit = HKUnit.millimeterOfMercury()
+    let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+    let query = HKSampleQuery(sampleType: correlationType, predicate: nil, limit: 1, sortDescriptors: [sort]) { _, samples, _ in
+      guard let correlation = (samples as? [HKCorrelation])?.first,
+            let systolic = correlation.objects(for: systolicType).first as? HKQuantitySample,
+            let diastolic = correlation.objects(for: diastolicType).first as? HKQuantitySample
+      else {
+        completion([:], nil)
+        return
+      }
+
+      let systolicValue = self.round(systolic.quantity.doubleValue(for: unit))
+      let diastolicValue = self.round(diastolic.quantity.doubleValue(for: unit))
+
+      completion([
+        "systolicBloodPressureMmhg": systolicValue,
+        "diastolicBloodPressureMmhg": diastolicValue,
+        "latestBloodPressureAt": self.isoString(correlation.endDate),
+        "bloodPressureLevel": self.bloodPressureLevel(
+          systolic: systolicValue,
+          diastolic: diastolicValue
+        ),
+      ], nil)
+    }
+
+    healthStore.execute(query)
+  }
+
+  private func querySleepApneaSummaryLast30Days(
+    completion: @escaping ([String: Any], Error?) -> Void
+  ) {
+    guard #available(iOS 18.0, *) else {
+      completion([:], nil)
+      return
+    }
+
+    let endDate = Date()
+    let startDate = endDate.addingTimeInterval(-30 * 24 * 60 * 60)
+    let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+    let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+
+    var apneaEventCount = 0
+    var apneaDurationMinutes: Double = 0
+    var latestEventDate: Date?
+    var apneaClassification = "unknown"
+    let group = DispatchGroup()
+    var didRunQuery = false
+
+    if let sleepApneaType = HKObjectType.categoryType(forIdentifier: .sleepApneaEvent) {
+      didRunQuery = true
+      group.enter()
+
+      let apneaQuery = HKSampleQuery(sampleType: sleepApneaType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+        let categorySamples = (samples as? [HKCategorySample]) ?? []
+        apneaEventCount = categorySamples.count
+        apneaDurationMinutes = categorySamples.reduce(0) { total, sample in
+          total + sample.endDate.timeIntervalSince(sample.startDate) / 60
+        }
+        latestEventDate = categorySamples.first?.endDate
+        group.leave()
+      }
+
+      healthStore.execute(apneaQuery)
+    }
+
+    if let disturbancesType = HKObjectType.quantityType(forIdentifier: .appleSleepingBreathingDisturbances) {
+      didRunQuery = true
+      group.enter()
+
+      let disturbancesQuery = HKSampleQuery(sampleType: disturbancesType, predicate: predicate, limit: 1, sortDescriptors: [sort]) { _, samples, _ in
+        if let sample = (samples as? [HKQuantitySample])?.first {
+          if let classification = HKAppleSleepingBreathingDisturbancesClassification(classifying: sample.quantity) {
+            apneaClassification = self.apneaClassificationString(classification.rawValue)
+          }
+
+          if latestEventDate == nil {
+            latestEventDate = sample.endDate
+          }
+        }
+
+        group.leave()
+      }
+
+      healthStore.execute(disturbancesQuery)
+    }
+
+    guard didRunQuery else {
+      completion([:], nil)
+      return
+    }
+
+    group.notify(queue: .main) {
+      if apneaEventCount == 0 && apneaClassification == "unknown" {
+        completion([:], nil)
+        return
+      }
+
+      let riskLevel = self.apneaRiskLevel(
+        eventCount: apneaEventCount,
+        durationMinutes: apneaDurationMinutes,
+        classification: apneaClassification
+      )
+
+      var apnea: [String: Any] = [
+        "eventCountLast30d": apneaEventCount,
+        "durationMinutesLast30d": self.round(apneaDurationMinutes),
+        "classification": apneaClassification,
+        "riskLevel": riskLevel,
+        "reminder": self.apneaReminder(
+          riskLevel: riskLevel,
+          eventCount: apneaEventCount,
+          classification: apneaClassification
+        ),
+      ]
+
+      if let latestEventDate {
+        apnea["latestEventAt"] = self.isoString(latestEventDate)
+      }
+
+      completion([
+        "apnea": apnea,
+      ], nil)
+    }
   }
 
   private func queryTodayCumulative(
@@ -2307,6 +2470,75 @@ public final class HealthKitManager: NSObject, LynxModule {
   private func round(_ value: Double, digits: Int = 2) -> Double {
     let factor = pow(10.0, Double(digits))
     return Foundation.round(value * factor) / factor
+  }
+
+  private func bloodPressureLevel(systolic: Double, diastolic: Double) -> String {
+    if systolic > 180 || diastolic > 120 {
+      return "hypertensive-crisis"
+    }
+    if systolic >= 140 || diastolic >= 90 {
+      return "hypertension-stage-2"
+    }
+    if systolic >= 130 || diastolic >= 80 {
+      return "hypertension-stage-1"
+    }
+    if systolic >= 120 && diastolic < 80 {
+      return "elevated"
+    }
+    return "normal"
+  }
+
+  private func apneaClassificationString(_ rawValue: Int) -> String {
+    switch rawValue {
+    case 0:
+      return "notElevated"
+    case 1:
+      return "elevated"
+    default:
+      return "unknown"
+    }
+  }
+
+  private func apneaRiskLevel(
+    eventCount: Int,
+    durationMinutes: Double,
+    classification: String
+  ) -> String {
+    if classification == "elevated" {
+      return "high"
+    }
+    if eventCount == 0 && classification == "notElevated" {
+      return "none"
+    }
+    if eventCount >= 3 || durationMinutes >= 20 {
+      return "high"
+    }
+    if eventCount > 0 {
+      return "watch"
+    }
+    return "unknown"
+  }
+
+  private func apneaReminder(
+    riskLevel: String,
+    eventCount: Int,
+    classification: String
+  ) -> String {
+    switch riskLevel {
+    case "none":
+      return "No elevated sleep apnea signal was found in recent Health data."
+    case "watch":
+      return "Sleep apnea events were detected recently. Keep monitoring the trend."
+    case "high":
+      if classification == "elevated" {
+        return "Apple sleeping breathing disturbances are elevated. Review the signal and consider follow-up."
+      }
+      return "Multiple sleep apnea events were detected recently. Review the signal and consider follow-up."
+    default:
+      return eventCount > 0
+        ? "Recent sleep apnea-related data is available."
+        : "Sleep apnea data is available but not fully classified."
+    }
   }
 
   private func isoString(_ date: Date) -> String {

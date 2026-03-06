@@ -53,13 +53,20 @@ Current bridge returns:
 
 - Activity totals (steps, active energy, exercise minutes)
 - Sleep summary (last 36h)
-- Sleep apnea summary (last 30d, if available)
+- Sleep apnea summary (last 30d on iOS 18+, if available)
 - Heart metrics (latest + 24h hourly average series)
+- Latest blood pressure snapshot and derived level (if available)
 - Blood oxygen (latest + 24h hourly average series)
 - Blood glucose
   - `bloodGlucoseMgDl` (latest)
   - `bloodGlucoseSeriesLast7d` (daily average, mmol/L)
 - Recent workouts
+
+Blood pressure and sleep apnea reads are best-effort:
+
+- missing permissions do not fail the snapshot
+- unsupported iOS versions do not fail the snapshot
+- empty Health data does not fail the snapshot
 
 ## 6. Notes on simulator
 

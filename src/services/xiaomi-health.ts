@@ -133,6 +133,7 @@ function normalizeSnapshot(payload: unknown, fallbackSource: HealthSnapshotSourc
     environment: (normalized.environment as HealthSnapshot['environment']) ?? undefined,
     body: (normalized.body as HealthSnapshot['body']) ?? undefined,
     workouts: (normalized.workouts as HealthSnapshot['workouts']) ?? [],
+    alerts: (normalized.alerts as HealthSnapshot['alerts']) ?? undefined,
   };
 }
 

@@ -4,6 +4,12 @@ export type HealthTrendPoint = {
   unit: string;
 };
 
+export type HealthSnapshotSource =
+  | 'healthkit'
+  | 'xiaomi-health'
+  | 'huawei-health'
+  | 'mock';
+
 export type HealthSleepStageOrUnknown =
   | 'inBed'
   | 'asleepUnspecified'
@@ -37,6 +43,7 @@ export type HealthSleepApneaData = {
   eventCountLast30d?: number;
   durationMinutesLast30d?: number;
   latestEventAt?: string;
+  classification?: 'notElevated' | 'elevated' | 'unknown';
   riskLevel?: HealthSleepApneaRiskLevel;
   reminder?: string;
 };
@@ -75,6 +82,14 @@ export type HealthSleepData = {
   apnea?: HealthSleepApneaData;
 };
 
+export type HealthBloodPressureLevel =
+  | 'normal'
+  | 'elevated'
+  | 'hypertension-stage-1'
+  | 'hypertension-stage-2'
+  | 'hypertensive-crisis'
+  | 'unknown';
+
 export type HealthHeartData = {
   latestHeartRateBpm?: number;
   restingHeartRateBpm?: number;
@@ -84,6 +99,8 @@ export type HealthHeartData = {
   atrialFibrillationBurdenPercent?: number;
   systolicBloodPressureMmhg?: number;
   diastolicBloodPressureMmhg?: number;
+  latestBloodPressureAt?: string;
+  bloodPressureLevel?: HealthBloodPressureLevel;
   heartRateSeriesLast24h?: HealthTrendPoint[];
   heartRateVariabilitySeriesLast7d?: HealthTrendPoint[];
 };
@@ -112,11 +129,16 @@ export type HealthBodyData = {
   bodyMassSeriesLast30d?: HealthTrendPoint[];
 };
 
-export type HealthSnapshotSource =
-  | 'healthkit'
-  | 'xiaomi-health'
-  | 'huawei-health'
-  | 'mock';
+export type HealthAlertSeverity = 'info' | 'watch' | 'high';
+
+export type HealthAlert = {
+  code: 'blood-pressure-alert' | 'sleep-apnea-alert';
+  title: string;
+  message: string;
+  severity: HealthAlertSeverity;
+  detectedAt?: string;
+  source?: HealthSnapshotSource;
+};
 
 export type HealthSnapshot = {
   source: HealthSnapshotSource;
@@ -131,4 +153,5 @@ export type HealthSnapshot = {
   environment?: HealthEnvironmentData;
   body?: HealthBodyData;
   workouts?: HealthWorkoutRecord[];
+  alerts?: HealthAlert[];
 };

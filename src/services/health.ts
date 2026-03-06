@@ -1,4 +1,7 @@
 import type {
+  HealthAlert,
+  HealthBloodPressureLevel,
+  HealthSleepApneaData,
   HealthSleepSample,
   HealthSnapshot,
   HealthTrendPoint,
@@ -124,6 +127,124 @@ function isoDayOffset(base: Date, dayOffset: number, hour = 8, minute = 0): stri
   date.setDate(date.getDate() + dayOffset);
   date.setHours(hour, minute, 0, 0);
   return date.toISOString();
+}
+
+function classifyBloodPressureLevel(
+  systolic?: number,
+  diastolic?: number,
+): HealthBloodPressureLevel | undefined {
+  if (systolic === undefined && diastolic === undefined) {
+    return undefined;
+  }
+  if ((systolic ?? 0) > 180 || (diastolic ?? 0) > 120) {
+    return 'hypertensive-crisis';
+  }
+  if ((systolic ?? 0) >= 140 || (diastolic ?? 0) >= 90) {
+    return 'hypertension-stage-2';
+  }
+  if ((systolic ?? 0) >= 130 || (diastolic ?? 0) >= 80) {
+    return 'hypertension-stage-1';
+  }
+  if (systolic !== undefined && systolic >= 120 && (diastolic === undefined || diastolic < 80)) {
+    return 'elevated';
+  }
+  return 'normal';
+}
+
+function buildBloodPressureAlert(
+  heart: HealthSnapshot['heart'],
+  source: HealthSnapshot['source'],
+): HealthAlert | null {
+  if (!heart?.bloodPressureLevel || heart.bloodPressureLevel === 'normal' || heart.bloodPressureLevel === 'unknown') {
+    return null;
+  }
+
+  const systolic = heart.systolicBloodPressureMmhg;
+  const diastolic = heart.diastolicBloodPressureMmhg;
+  const reading =
+    systolic !== undefined || diastolic !== undefined
+      ? `${systolic ?? '-'} / ${diastolic ?? '-'} mmHg`
+      : 'unavailable reading';
+
+  if (heart.bloodPressureLevel === 'hypertensive-crisis') {
+    return {
+      code: 'blood-pressure-alert',
+      title: 'Blood pressure is very high',
+      message: `Latest blood pressure reading is ${reading}. Re-check promptly and follow your care plan.`,
+      severity: 'high',
+      detectedAt: heart.latestBloodPressureAt,
+      source,
+    };
+  }
+
+  if (heart.bloodPressureLevel === 'hypertension-stage-2') {
+    return {
+      code: 'blood-pressure-alert',
+      title: 'Blood pressure is high',
+      message: `Latest blood pressure reading is ${reading}. Keep monitoring and consider medical follow-up.`,
+      severity: 'high',
+      detectedAt: heart.latestBloodPressureAt,
+      source,
+    };
+  }
+
+  return {
+    code: 'blood-pressure-alert',
+    title: 'Blood pressure needs attention',
+    message: `Latest blood pressure reading is ${reading}. Watch the trend and re-measure regularly.`,
+    severity: 'watch',
+    detectedAt: heart.latestBloodPressureAt,
+    source,
+  };
+}
+
+function buildSleepApneaAlert(
+  apnea: HealthSleepApneaData | undefined,
+  source: HealthSnapshot['source'],
+): HealthAlert | null {
+  if (!apnea) {
+    return null;
+  }
+
+  const elevatedClassification = apnea.classification === 'elevated';
+  const elevatedRisk = apnea.riskLevel === 'watch' || apnea.riskLevel === 'high';
+
+  if (!elevatedClassification && !elevatedRisk) {
+    return null;
+  }
+
+  const eventSummary =
+    apnea.eventCountLast30d !== undefined
+      ? `${apnea.eventCountLast30d} events in 30 days`
+      : 'recent breathing disturbance signals';
+
+  return {
+    code: 'sleep-apnea-alert',
+    title: apnea.riskLevel === 'high' || elevatedClassification ? 'Sleep apnea signal detected' : 'Sleep apnea trend needs attention',
+    message: apnea.reminder ?? `HealthKit reported ${eventSummary}. Review the trend in context with symptoms.`,
+    severity: apnea.riskLevel === 'high' || elevatedClassification ? 'high' : 'watch',
+    detectedAt: apnea.latestEventAt,
+    source,
+  };
+}
+
+function buildSnapshotAlerts(
+  source: HealthSnapshot['source'],
+  heart?: HealthSnapshot['heart'],
+  sleep?: HealthSnapshot['sleep'],
+): HealthAlert[] {
+  const alerts: HealthAlert[] = [];
+  const bloodPressureAlert = buildBloodPressureAlert(heart, source);
+  const sleepApneaAlert = buildSleepApneaAlert(sleep?.apnea, source);
+
+  if (bloodPressureAlert) {
+    alerts.push(bloodPressureAlert);
+  }
+  if (sleepApneaAlert) {
+    alerts.push(sleepApneaAlert);
+  }
+
+  return alerts;
 }
 
 function buildHourlySeries(
@@ -320,6 +441,7 @@ function buildMockSleepData(now: Date): HealthSnapshot['sleep'] {
       eventCountLast30d: apneaEventCountLast30d,
       durationMinutesLast30d: apneaDurationMinutesLast30d,
       latestEventAt,
+      classification: apneaRiskLevel === 'none' ? 'notElevated' : 'elevated',
       riskLevel: apneaRiskLevel,
       reminder: apneaReminder,
     },
@@ -357,6 +479,12 @@ function buildMockHeartData(now: Date): HealthSnapshot['heart'] {
     value: randomInt(20, 72),
     unit: 'ms',
   }));
+  const systolicBloodPressureMmhg = randomInt(102, 146);
+  const diastolicBloodPressureMmhg = randomInt(62, 96);
+  const bloodPressureLevel = classifyBloodPressureLevel(
+    systolicBloodPressureMmhg,
+    diastolicBloodPressureMmhg,
+  );
 
   return {
     latestHeartRateBpm: latestHeartRateBpm ? round(latestHeartRateBpm, 1) : undefined,
@@ -365,8 +493,10 @@ function buildMockHeartData(now: Date): HealthSnapshot['heart'] {
     heartRateVariabilityMs: heartRateVariabilitySeriesLast7d[heartRateVariabilitySeriesLast7d.length - 1]?.value,
     vo2MaxMlKgMin: randomFloat(28, 48, 1),
     atrialFibrillationBurdenPercent: randomFloat(0, 1.2, 2),
-    systolicBloodPressureMmhg: randomInt(102, 134),
-    diastolicBloodPressureMmhg: randomInt(62, 86),
+    systolicBloodPressureMmhg,
+    diastolicBloodPressureMmhg,
+    latestBloodPressureAt: new Date(now.getTime() - randomInt(2, 72) * 60 * 60 * 1000).toISOString(),
+    bloodPressureLevel,
     heartRateSeriesLast24h,
     heartRateVariabilitySeriesLast7d,
   };
@@ -476,6 +606,9 @@ function buildMockWorkouts(now: Date): HealthWorkoutRecord[] {
 
 export function buildMockHealthSnapshot(): HealthSnapshot {
   const now = new Date();
+  const sleep = buildMockSleepData(now);
+  const heart = buildMockHeartData(now);
+  const alerts = buildSnapshotAlerts('mock', heart, sleep);
 
   return {
     source: 'mock',
@@ -483,13 +616,14 @@ export function buildMockHealthSnapshot(): HealthSnapshot {
     generatedAt: now.toISOString(),
     note: 'Mock data generated with HealthKit-aligned units and stage-aware sleep samples.',
     activity: buildMockActivityData(now),
-    sleep: buildMockSleepData(now),
-    heart: buildMockHeartData(now),
+    sleep,
+    heart,
     oxygen: buildMockOxygenData(now),
     metabolic: buildMockMetabolicData(now),
     environment: buildMockEnvironmentData(now),
     body: buildMockBodyData(now),
     workouts: buildMockWorkouts(now),
+    alerts,
   };
 }
 
@@ -499,19 +633,26 @@ function normalizeSnapshot(sourcePayload: unknown, source: 'healthkit' | 'mock')
   }
 
   const payload = sourcePayload as Record<string, unknown>;
+  const heart = (payload.heart as HealthSnapshot['heart']) ?? undefined;
+  const sleep = (payload.sleep as HealthSnapshot['sleep']) ?? undefined;
+  const alerts =
+    (payload.alerts as HealthSnapshot['alerts']) ??
+    buildSnapshotAlerts(source, heart, sleep);
+
   return {
     source,
     authorized: payload.authorized === true,
     generatedAt: typeof payload.generatedAt === 'string' ? payload.generatedAt : new Date().toISOString(),
     note: typeof payload.note === 'string' ? payload.note : undefined,
     activity: (payload.activity as HealthSnapshot['activity']) ?? undefined,
-    sleep: (payload.sleep as HealthSnapshot['sleep']) ?? undefined,
-    heart: (payload.heart as HealthSnapshot['heart']) ?? undefined,
+    sleep,
+    heart,
     oxygen: (payload.oxygen as HealthSnapshot['oxygen']) ?? undefined,
     metabolic: (payload.metabolic as HealthSnapshot['metabolic']) ?? undefined,
     environment: (payload.environment as HealthSnapshot['environment']) ?? undefined,
     body: (payload.body as HealthSnapshot['body']) ?? undefined,
     workouts: (payload.workouts as HealthSnapshot['workouts']) ?? [],
+    alerts,
   };
 }
 
