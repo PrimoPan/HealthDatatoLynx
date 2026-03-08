@@ -1,6 +1,10 @@
 import type { HealthSnapshot } from '../types/health.js';
 
-export type HealthProviderId = 'apple-healthkit' | 'huawei-health' | 'xiaomi-health';
+export type HealthProviderId =
+  | 'apple-healthkit'
+  | 'health-connect'
+  | 'huawei-health'
+  | 'xiaomi-health';
 
 export type HealthProviderReadOptions = {
   useMock?: boolean;

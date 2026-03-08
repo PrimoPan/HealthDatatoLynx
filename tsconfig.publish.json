@@ -6,7 +6,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "./dist/npm",
+    "outDir": "./pkg",
     "rootDir": "./src",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",

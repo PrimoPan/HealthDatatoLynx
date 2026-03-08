@@ -3,6 +3,10 @@ import {
   createAppleHealthKitProviderAdapter,
 } from '../adapters/apple-healthkit.js';
 import {
+  createHealthConnectProviderAdapter,
+  type HealthConnectProviderAdapterOptions,
+} from '../adapters/health-connect.js';
+import {
   createHuaweiHealthProviderAdapter,
   type HuaweiHealthProviderAdapterOptions,
 } from '../adapters/huawei-health.js';
@@ -19,6 +23,7 @@ import {
 import {
   isHealthKitNativeAvailable,
 } from '../services/health.js';
+import { isHealthConnectNativeAvailable } from '../services/health-connect.js';
 import { isHuaweiHealthNativeAvailable } from '../services/huawei-health.js';
 import { isXiaomiHealthNativeAvailable } from '../services/xiaomi-health.js';
 import type { HealthSnapshot } from '../types/health.js';
@@ -28,6 +33,7 @@ export type HealthClientProvider = HealthProviderId | 'auto';
 export type HealthClientOptions = {
   provider?: HealthClientProvider;
   fallbackToMock?: boolean;
+  healthConnect?: HealthConnectProviderAdapterOptions;
   huawei?: HuaweiHealthProviderAdapterOptions;
   xiaomi?: XiaomiHealthProviderAdapterOptions;
   adapters?: HealthProviderAdapter[];
@@ -57,6 +63,16 @@ function resolveProviderFromEnvironment(options: HealthClientOptions): HealthPro
     return 'apple-healthkit';
   }
 
+  const healthConnectConfigured =
+    Boolean(options.healthConnect?.readSnapshot) ||
+    Boolean(options.healthConnect?.readRawData) ||
+    Boolean(options.healthConnect?.requestAuthorization) ||
+    Boolean(options.healthConnect?.isAvailable);
+
+  if (isHealthConnectNativeAvailable() || healthConnectConfigured) {
+    return 'health-connect';
+  }
+
   const huaweiConfigured =
     Boolean(options.huawei?.readSnapshot) ||
     Boolean(options.huawei?.readRawData) ||
@@ -82,6 +98,7 @@ function resolveProviderFromEnvironment(options: HealthClientOptions): HealthPro
 function buildAdapters(options: HealthClientOptions): HealthProviderAdapter[] {
   const defaults: HealthProviderAdapter[] = [
     options.provider === 'apple-healthkit' ? createAppleHealthKitProviderAdapter() : appleHealthKitProviderAdapter,
+    createHealthConnectProviderAdapter(options.healthConnect),
     createHuaweiHealthProviderAdapter(options.huawei),
     createXiaomiHealthProviderAdapter(options.xiaomi),
   ];

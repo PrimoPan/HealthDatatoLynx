@@ -4,6 +4,7 @@ import './App.css';
 import {
   buildMockHealthSnapshot,
   createHealthClient,
+  isHealthConnectNativeAvailable,
   isHealthKitNativeAvailable,
   isHuaweiHealthNativeAvailable,
   isXiaomiHealthNativeAvailable,
@@ -58,6 +59,9 @@ function getProviderLabel(providerId: HealthProviderId): string {
   if (providerId === 'apple-healthkit') {
     return 'Apple HealthKit';
   }
+  if (providerId === 'health-connect') {
+    return 'Health Connect';
+  }
   if (providerId === 'huawei-health') {
     return 'Huawei Health';
   }
@@ -77,6 +81,8 @@ export function App() {
   const nativeAvailable =
     providerId === 'apple-healthkit'
       ? isHealthKitNativeAvailable()
+      : providerId === 'health-connect'
+        ? isHealthConnectNativeAvailable()
       : providerId === 'huawei-health'
         ? isHuaweiHealthNativeAvailable()
       : providerId === 'xiaomi-health'
@@ -197,7 +203,7 @@ export function App() {
           <text className='badge'>Open Source Starter</text>
           <text className='title'>Health Data to Lynx</text>
           <text className='subtitle'>
-            One-click health authorization and snapshot reading for Lynx apps (Apple + Huawei + Xiaomi).
+            One-click health authorization and snapshot reading for Lynx apps (Apple + Health Connect + Huawei + Xiaomi).
           </text>
         </view>
 
@@ -211,6 +217,14 @@ export function App() {
             >
               <text className={`provider-text ${providerId === 'apple-healthkit' ? 'active' : ''}`}>
                 Apple HealthKit
+              </text>
+            </view>
+            <view
+              className={`provider-btn ${providerId === 'health-connect' ? 'active' : ''}`}
+              bindtap={() => setProviderId('health-connect')}
+            >
+              <text className={`provider-text ${providerId === 'health-connect' ? 'active' : ''}`}>
+                Health Connect
               </text>
             </view>
             <view

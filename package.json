@@ -1,11 +1,13 @@
 {
   "name": "health-data-to-lynx",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "Lynx health SDK with Apple HealthKit, Huawei Health, and Xiaomi adapters plus typed health snapshots.",
+  "description": "Lynx health SDK with Apple HealthKit, Health Connect, Huawei Health, and Xiaomi adapters plus typed health snapshots.",
   "keywords": [
     "lynx",
     "healthkit",
+    "health-connect",
+    "android-health",
     "huawei-health",
     "huawei-health-kit",
     "xiaomi-health",
@@ -28,23 +30,24 @@
   "engines": {
     "node": ">=18"
   },
-  "main": "./dist/npm/lib/index.js",
-  "module": "./dist/npm/lib/index.js",
-  "types": "./dist/npm/lib/index.d.ts",
+  "main": "./pkg/lib/index.js",
+  "module": "./pkg/lib/index.js",
+  "types": "./pkg/lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/npm/lib/index.d.ts",
-      "import": "./dist/npm/lib/index.js"
+      "types": "./pkg/lib/index.d.ts",
+      "import": "./pkg/lib/index.js"
     },
     "./ios/HealthKitBridge/HealthKitManager.swift": "./ios/HealthKitBridge/HealthKitManager.swift",
     "./ios/HealthKitBridge/README.md": "./ios/HealthKitBridge/README.md",
     "./package.json": "./package.json"
   },
   "files": [
-    "dist/npm",
+    "pkg",
     "ios/HealthKitBridge",
     "docs",
     "src/assets/lynx-logo.png",
+    "CHANGELOG.md",
     "README.md",
     "README.zh-CN.md",
     "LICENSE"
@@ -53,7 +56,7 @@
     "build": "npm run build:web",
     "build:web": "rspeedy build",
     "build:npm": "tsc -p tsconfig.publish.json",
-    "clean:npm": "rm -rf dist/npm",
+    "clean:npm": "rm -rf pkg",
     "dev": "rspeedy dev",
     "format": "prettier --write .",
     "lint": "eslint .",

@@ -6,6 +6,7 @@ export type HealthTrendPoint = {
 
 export type HealthSnapshotSource =
   | 'healthkit'
+  | 'health-connect'
   | 'xiaomi-health'
   | 'huawei-health'
   | 'mock';
