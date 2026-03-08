@@ -63,7 +63,7 @@
     "release:patch": "npm version patch -m \"chore(release): %s\"",
     "release:minor": "npm version minor -m \"chore(release): %s\"",
     "release:major": "npm version major -m \"chore(release): %s\"",
-    "publish:public": "npm publish --access public"
+    "publish:public": "npm publish --access public --registry https://registry.npmjs.org/"
   },
   "dependencies": {
     "@lynx-js/react": "^0.116.3"
@@ -88,6 +88,7 @@
   },
   "private": false,
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
