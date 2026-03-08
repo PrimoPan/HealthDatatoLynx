@@ -311,6 +311,17 @@ function buildMockActivityData(now: Date): HealthSnapshot['activity'] {
   const exerciseMinutesToday = Math.round(
     exerciseMinutesHourlySeriesToday.reduce((total, point) => total + point.value, 0),
   );
+  const exerciseIntensitySeriesToday = exerciseMinutesHourlySeriesToday.map(point => ({
+    timestamp: point.timestamp,
+    value:
+      point.value >= 10 ? randomInt(70, 92) : point.value >= 4 ? randomInt(38, 74) : randomInt(8, 28),
+    unit: 'score',
+  }));
+  const altitudeSeriesLast24h = stepsHourlySeriesToday.map((point, index) => ({
+    timestamp: point.timestamp,
+    value: round(14 + Math.sin(index / 4) * 6 + randomFloat(-1.2, 1.2, 2), 2),
+    unit: 'm',
+  }));
 
   const standHoursToday = stepsHourlySeriesToday.filter(point => point.value >= 80).length;
   const distanceWalkingRunningKmToday = round(clamp(stepsToday * randomFloat(0.00063, 0.00079, 6), 0, 24), 2);
@@ -322,10 +333,14 @@ function buildMockActivityData(now: Date): HealthSnapshot['activity'] {
     basalEnergyKcalToday: randomInt(1180, 1920),
     flightsClimbedToday: randomInt(0, 20),
     exerciseMinutesToday,
+    exerciseIntensityScoreToday: exerciseIntensitySeriesToday[exerciseIntensitySeriesToday.length - 1]?.value,
     standHoursToday,
+    altitudeMeters: altitudeSeriesLast24h[altitudeSeriesLast24h.length - 1]?.value,
     stepsHourlySeriesToday,
     activeEnergyHourlySeriesToday,
     exerciseMinutesHourlySeriesToday,
+    exerciseIntensitySeriesToday,
+    altitudeSeriesLast24h,
   };
 }
 
@@ -421,6 +436,18 @@ function buildMockSleepData(now: Date): HealthSnapshot['sleep'] {
 
   const latestEventAt =
     apneaEventCountLast30d > 0 ? new Date(now.getTime() - randomInt(1, 25) * 24 * 60 * 60 * 1000).toISOString() : undefined;
+  const wentToBedAt = samplesLast36h[0]?.startDate;
+  const fellAsleepAt = samplesLast36h.find(sample => sample.stage !== 'inBed')?.startDate;
+  const wokeUpAt = samplesLast36h[samplesLast36h.length - 1]?.endDate;
+  const offBedAt = wokeUpAt ? new Date(new Date(wokeUpAt).getTime() + randomInt(6, 22) * 60000).toISOString() : undefined;
+  const prepareSleepMinutes = wentToBedAt && fellAsleepAt
+    ? round((new Date(fellAsleepAt).getTime() - new Date(wentToBedAt).getTime()) / 60000, 1)
+    : undefined;
+  const wakeUpCount = segments.filter(segment => segment.stage === 'awake').length;
+  const deepSleepSegmentCount = segments.filter(segment => segment.stage === 'asleepDeep').length;
+  const ahiLastSession =
+    apneaEventCountLast30d === 0 ? round(randomFloat(0.4, 3.8, 1), 1) : round(randomFloat(5.2, 19.8, 1), 1);
+  const therapyModeCode = apneaEventCountLast30d === 0 ? 1 : Math.random() > 0.45 ? 2 : 3;
 
   return {
     inBedMinutesLast36h: round(inBedMinutes, 1),
@@ -428,6 +455,18 @@ function buildMockSleepData(now: Date): HealthSnapshot['sleep'] {
     awakeMinutesLast36h: round(awakeMinutes, 1),
     sampleCountLast36h: samplesLast36h.length,
     sleepScore,
+    fellAsleepAt,
+    wokeUpAt,
+    wentToBedAt,
+    offBedAt,
+    prepareSleepMinutes,
+    allSleepMinutes: round(asleepMinutesLast36h, 1),
+    lightSleepMinutes: round(asleepCoreMinutes, 1),
+    deepSleepMinutes: round(asleepDeepMinutes, 1),
+    dreamMinutes: round(asleepREMMinutes, 1),
+    wakeUpCount,
+    deepSleepSegmentCount,
+    sleepType: 'normal',
     stageMinutesLast36h: {
       inBedMinutes: round(inBedMinutes, 1),
       asleepUnspecifiedMinutes: round(asleepUnspecifiedMinutes, 1),
@@ -441,6 +480,32 @@ function buildMockSleepData(now: Date): HealthSnapshot['sleep'] {
       eventCountLast30d: apneaEventCountLast30d,
       durationMinutesLast30d: apneaDurationMinutesLast30d,
       latestEventAt,
+      ahiLastSession,
+      therapyModeCode,
+      therapyMode: therapyModeCode === 1 ? 'CPAP' : therapyModeCode === 2 ? 'Auto CPAP' : 'BPAP',
+      sessionDate: latestEventAt,
+      sessionDurationMinutes: round(randomFloat(240, 470, 1), 1),
+      tidalVolumeMedianMl: round(randomFloat(410, 590, 1), 1),
+      tidalVolumeP95Ml: round(randomFloat(520, 690, 1), 1),
+      tidalVolumeMaxMl: round(randomFloat(620, 840, 1), 1),
+      respiratoryRateMedianBrpm: round(randomFloat(12.8, 17.4, 1), 1),
+      respiratoryRateP95Brpm: round(randomFloat(17.2, 22.8, 1), 1),
+      respiratoryRateMaxBrpm: round(randomFloat(21.5, 28.5, 1), 1),
+      inspirationExpirationRatioMedian: round(randomFloat(1.6, 2.2, 2), 2),
+      inspirationExpirationRatioP95: round(randomFloat(2.1, 2.8, 2), 2),
+      inspirationExpirationRatioMax: round(randomFloat(2.7, 3.6, 2), 2),
+      maskOffCount: apneaEventCountLast30d === 0 ? 0 : randomInt(0, 3),
+      hypoventilationIndex: apneaEventCountLast30d === 0 ? round(randomFloat(0.1, 0.6, 1), 1) : round(randomFloat(0.8, 3.9, 1), 1),
+      obstructiveApneaIndex: ahiLastSession,
+      pressureBelow95: round(randomFloat(5, 16, 1), 1),
+      hypoventilationEventCount: apneaEventCountLast30d === 0 ? 0 : randomInt(0, 4),
+      snoringEventCount: apneaEventCountLast30d === 0 ? 0 : randomInt(1, 8),
+      obstructiveApneaEventCount: apneaEventCountLast30d,
+      centralApneaEventCount: apneaEventCountLast30d === 0 ? 0 : randomInt(0, 2),
+      airflowLimitationEventCount: apneaEventCountLast30d === 0 ? 0 : randomInt(0, 5),
+      massiveLeakEventCount: apneaEventCountLast30d === 0 ? 0 : randomInt(0, 2),
+      unknownEventCount: apneaEventCountLast30d === 0 ? 0 : randomInt(0, 1),
+      allEventCount: apneaEventCountLast30d,
       classification: apneaRiskLevel === 'none' ? 'notElevated' : 'elevated',
       riskLevel: apneaRiskLevel,
       reminder: apneaReminder,
@@ -543,15 +608,30 @@ function buildMockEnvironmentData(now: Date): HealthSnapshot['environment'] {
 }
 
 function buildMockBodyData(now: Date): HealthSnapshot['body'] {
+  const heightSeriesLast30d = Array.from({ length: 30 }, (_, index) => ({
+    timestamp: isoDayOffset(now, -(29 - index), 7, 40),
+    value: round(171.8 + Math.sin(index / 8) * 0.15 + randomFloat(-0.06, 0.06, 2), 2),
+    unit: 'cm',
+  }));
   const respiratoryRateSeriesLast7d = Array.from({ length: 7 }, (_, index) => ({
     timestamp: isoDayOffset(now, -(6 - index), 8, 10),
     value: randomFloat(12, 19, 1),
     unit: 'brpm',
   }));
+  const stressSeriesLast7d = Array.from({ length: 7 }, (_, index) => ({
+    timestamp: isoDayOffset(now, -(6 - index), 8, 11),
+    value: randomInt(18, 62),
+    unit: 'score',
+  }));
 
   const bodyTemperatureSeriesLast7d = Array.from({ length: 7 }, (_, index) => ({
     timestamp: isoDayOffset(now, -(6 - index), 8, 12),
     value: randomFloat(36.2, 37.2, 2),
+    unit: 'degC',
+  }));
+  const skinTemperatureSeriesLast7d = Array.from({ length: 7 }, (_, index) => ({
+    timestamp: isoDayOffset(now, -(6 - index), 8, 13),
+    value: randomFloat(33.8, 35.7, 2),
     unit: 'degC',
   }));
 
@@ -563,11 +643,17 @@ function buildMockBodyData(now: Date): HealthSnapshot['body'] {
   }));
 
   return {
+    heightCm: heightSeriesLast30d[heightSeriesLast30d.length - 1]?.value,
     respiratoryRateBrpm: respiratoryRateSeriesLast7d[respiratoryRateSeriesLast7d.length - 1]?.value,
+    stressScore: stressSeriesLast7d[stressSeriesLast7d.length - 1]?.value,
     bodyTemperatureCelsius: bodyTemperatureSeriesLast7d[bodyTemperatureSeriesLast7d.length - 1]?.value,
+    skinTemperatureCelsius: skinTemperatureSeriesLast7d[skinTemperatureSeriesLast7d.length - 1]?.value,
     bodyMassKg: bodyMassSeriesLast30d[bodyMassSeriesLast30d.length - 1]?.value,
+    heightSeriesLast30d,
     respiratoryRateSeriesLast7d,
+    stressSeriesLast7d,
     bodyTemperatureSeriesLast7d,
+    skinTemperatureSeriesLast7d,
     bodyMassSeriesLast30d,
   };
 }

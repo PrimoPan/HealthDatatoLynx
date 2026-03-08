@@ -1,11 +1,13 @@
 {
   "name": "health-data-to-lynx",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Lynx health SDK starter with Apple HealthKit + Xiaomi adapters and typed health snapshots.",
+  "description": "Lynx health SDK with Apple HealthKit, Huawei Health, and Xiaomi adapters plus typed health snapshots.",
   "keywords": [
     "lynx",
     "healthkit",
+    "huawei-health",
+    "huawei-health-kit",
     "xiaomi-health",
     "ios",
     "android",

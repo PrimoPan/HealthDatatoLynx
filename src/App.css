@@ -74,11 +74,12 @@
   margin-top: 10px;
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .provider-btn {
-  flex: 1;
+  flex: 1 1 180px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background-color: #f7f8ff;

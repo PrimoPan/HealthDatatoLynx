@@ -13,10 +13,5 @@
     "target": "ES2022",
     "lib": ["ES2023"]
   },
-  "include": [
-    "src/lib/index.ts",
-    "src/services/health.ts",
-    "src/types/health.ts",
-    "src/adapters/provider.ts"
-  ]
+  "files": ["src/lib/index.ts"]
 }

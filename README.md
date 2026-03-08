@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>Lynx health SDK starter with Apple HealthKit + Xiaomi provider support.</strong>
+  <strong>Lynx health SDK starter with Apple HealthKit + Huawei Health + Xiaomi provider support.</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ## Overview
 
-HealthDataToLynx is an open-source starter project that bridges health data providers (currently **Apple HealthKit** and extensible **Xiaomi Health**) into a **Lynx** UI with a minimal and practical architecture.
+HealthDataToLynx is an open-source starter project that bridges health data providers (currently **Apple HealthKit**, **Huawei Health**, and **Xiaomi Health**) into a **Lynx** UI with a minimal and practical architecture.
 
 It is designed for teams who want to:
 
@@ -26,7 +26,7 @@ It is designed for teams who want to:
 - read real iOS health data with one tap,
 - keep API consistency with `react-native-health`,
 - keep a stable TypeScript data contract,
-- and later extend to Huawei/Xiaomi/other providers.
+- and keep extending to Health Connect and other providers.
 
 ## Core Features
 
@@ -35,8 +35,12 @@ It is designed for teams who want to:
 - Built-in **Xiaomi Health provider adapter**:
   - supports native `XiaomiHealthManager` bridge when available
   - supports custom hook-based connector for your own Xiaomi backend
+- Built-in **Huawei Health provider adapter**:
+  - supports native `HuaweiHealthManager` bridge when available
+  - supports hook-based raw payload normalization aligned to Huawei Health Kit field names
+  - maps latest Huawei sleep record and sleep-breathing record fields into the shared snapshot contract
 - Complete typed payload for key metrics:
-  - Activity, sleep, heart, SpO2, workouts
+  - Activity, sleep, heart, SpO2, body metrics, workouts
   - **Blood glucose included by default**
 - Mock data fallback for Lynx Explorer and early UI debugging
 - Unified client API: `createHealthClient` / `quickReadHealthSnapshot`
@@ -64,11 +68,13 @@ HealthDatatoLynx/
     App.css
     lib/client.ts
     services/health.ts
+    services/huawei-health.ts
     services/xiaomi-health.ts
     services/react-native-health.ts
     types/health.ts
     adapters/provider.ts
     adapters/apple-healthkit.ts
+    adapters/huawei-health.ts
     adapters/xiaomi-health.ts
 ```
 
@@ -95,25 +101,25 @@ One-line read (recommended):
 import { quickReadHealthSnapshot, readHealthSnapshot } from 'health-data-to-lynx';
 
 const snapshot = await quickReadHealthSnapshot({
-  provider: 'auto', // auto resolves Apple first, then Xiaomi
+  provider: 'auto', // auto resolves Apple first, then Huawei, then Xiaomi
 });
 
 // Alias with the same behavior:
 const snapshot2 = await readHealthSnapshot({ provider: 'apple-healthkit' });
 ```
 
-Explicit provider client (Apple or Xiaomi):
+Explicit provider client (Apple, Huawei, or Xiaomi):
 
 ```ts
 import { createHealthClient } from 'health-data-to-lynx';
 
 const client = createHealthClient({
-  provider: 'xiaomi-health',
-  xiaomi: {
-    // Replace with your own connector if Xiaomi data is managed by your backend.
+  provider: 'huawei-health',
+  huawei: {
+    // Replace with your own connector if Huawei Health data is read by your backend.
     isAvailable: async () => true,
     requestAuthorization: async () => true,
-    readSnapshot: async () => await getXiaomiSnapshotFromBackend(),
+    readRawData: async () => await getHuaweiHealthKitPayloadFromBackend(),
   },
 });
 
@@ -163,6 +169,41 @@ Minimum setup:
    - `NSHealthShareUsageDescription`
    - `NSHealthUpdateUsageDescription` (if you write data later)
 
+## Huawei Integration
+
+Huawei is supported in two ways:
+
+1. Native Lynx bridge:
+   - register a native module named `HuaweiHealthManager`
+   - expose methods aligned with HealthKit bridge style:
+     - `isHealthDataAvailable`
+     - `requestAuthorization`
+     - `getHealthSnapshot`
+2. Hook-based connector:
+   - pass `huawei.isAvailable / requestAuthorization / readSnapshot / readRawData` into `createHealthClient`
+   - `readSnapshot` can return a normalized `HealthSnapshot`
+   - `readRawData` can return raw Huawei Health Kit payloads keyed by official types such as:
+     - `DT_CONTINUOUS_STEPS_DELTA`
+     - `DT_INSTANTANEOUS_BLOOD_PRESSURE`
+     - `DT_HEALTH_RECORD_SLEEP`
+     - `DT_HEALTH_RECORD_VENTILATOR`
+
+Latest Huawei Health Kit coverage in this repo is aligned to the official docs for:
+
+- atomic sampling data:
+  - steps, distance, calories, exercise intensity v2, altitude, height, weight
+  - heart rate, resting heart rate, SpO2, blood glucose, blood pressure
+  - stress, body temperature, skin temperature, VO2Max
+- health records:
+  - sleep record fields such as `fall_asleep_time`, `wakeup_time`, `all_sleep_time`, `light_sleep_time`, `deep_sleep_time`, `dream_time`, `sleep_score`, `sleep_type`
+  - sleep-breathing record fields such as `sysMode`, `sysSessionDate`, `eventAhi`, `sysDuration`, `lumisTidvolMedian`, `clinicalRespRateMedian`, `maskOff`, `hypoventilationIndex`, `obstructiveApneaIndex`, `allEventTimes`
+
+Huawei Health Kit environment requirements used for alignment:
+
+- Android `7.0` to `16` (API `24` to `36`)
+- HMS Core `5.0.4.300+`
+- Huawei Health app `11.0.0.512+`
+
 ## Xiaomi Integration
 
 You can integrate Xiaomi in two ways:
@@ -185,9 +226,13 @@ You can integrate Xiaomi in two ways:
 - `oxygen.bloodOxygenPercent`
 - `oxygen.bloodOxygenSeriesLast24h[]`
 - `metabolic.bloodGlucoseMgDl`
-- `metabolic.bloodGlucoseSeriesLast7d[]` (mmol/L)
+- `metabolic.bloodGlucoseSeriesLast7d[]` (mg/dL in the shared contract)
 - `sleep.asleepMinutesLast36h`
 - `sleep.apnea.eventCountLast30d`
+- `sleep.apnea.ahiLastSession`
+- `sleep.lightSleepMinutes`
+- `body.stressScore`
+- `body.skinTemperatureCelsius`
 - `workouts[]`
 
 ## Similar Open-Source References
@@ -201,7 +246,7 @@ This project focuses on a **Lynx-first bridge** path, which is currently less co
 
 ## Roadmap
 
-- [ ] Huawei Health adapter
+- [x] Huawei Health adapter (native bridge + normalized raw payload support)
 - [x] Xiaomi Health adapter (native bridge + custom connector hooks)
 - [ ] Android Health Connect adapter
 - [ ] Scheduled sync + backend uploader

@@ -5,6 +5,7 @@ import {
   buildMockHealthSnapshot,
   createHealthClient,
   isHealthKitNativeAvailable,
+  isHuaweiHealthNativeAvailable,
   isXiaomiHealthNativeAvailable,
 } from './lib/index.js';
 import type { HealthProviderId, HealthSnapshot, HealthTrendPoint } from './lib/index.js';
@@ -53,6 +54,16 @@ function getTopSeries(points?: HealthTrendPoint[], limit = 6): HealthTrendPoint[
   return points.slice(Math.max(points.length - limit, 0));
 }
 
+function getProviderLabel(providerId: HealthProviderId): string {
+  if (providerId === 'apple-healthkit') {
+    return 'Apple HealthKit';
+  }
+  if (providerId === 'huawei-health') {
+    return 'Huawei Health';
+  }
+  return 'Xiaomi Health';
+}
+
 export function App() {
   const [providerId, setProviderId] = useState<HealthProviderId>('apple-healthkit');
   const client = useMemo(
@@ -66,10 +77,12 @@ export function App() {
   const nativeAvailable =
     providerId === 'apple-healthkit'
       ? isHealthKitNativeAvailable()
+      : providerId === 'huawei-health'
+        ? isHuaweiHealthNativeAvailable()
       : providerId === 'xiaomi-health'
         ? isXiaomiHealthNativeAvailable()
         : false;
-  const providerLabel = providerId === 'apple-healthkit' ? 'Apple HealthKit' : 'Xiaomi Health';
+  const providerLabel = getProviderLabel(providerId);
 
   const [snapshot, setSnapshot] = useState<HealthSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
@@ -184,7 +197,7 @@ export function App() {
           <text className='badge'>Open Source Starter</text>
           <text className='title'>Health Data to Lynx</text>
           <text className='subtitle'>
-            One-click health authorization and snapshot reading for Lynx apps (Apple + Xiaomi).
+            One-click health authorization and snapshot reading for Lynx apps (Apple + Huawei + Xiaomi).
           </text>
         </view>
 
@@ -198,6 +211,14 @@ export function App() {
             >
               <text className={`provider-text ${providerId === 'apple-healthkit' ? 'active' : ''}`}>
                 Apple HealthKit
+              </text>
+            </view>
+            <view
+              className={`provider-btn ${providerId === 'huawei-health' ? 'active' : ''}`}
+              bindtap={() => setProviderId('huawei-health')}
+            >
+              <text className={`provider-text ${providerId === 'huawei-health' ? 'active' : ''}`}>
+                Huawei Health
               </text>
             </view>
             <view

@@ -1,5 +1,6 @@
 export * from './client.js';
 export * from '../services/health.js';
+export * from '../services/huawei-health.js';
 export * from '../services/xiaomi-health.js';
 export * from '../services/react-native-health.js';
 export * from '../types/health.js';

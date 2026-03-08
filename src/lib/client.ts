@@ -4,7 +4,7 @@ import {
 } from '../adapters/apple-healthkit.js';
 import {
   createHuaweiHealthProviderAdapter,
-  huaweiHealthProviderAdapter,
+  type HuaweiHealthProviderAdapterOptions,
 } from '../adapters/huawei-health.js';
 import type {
   HealthProviderAdapter,
@@ -19,6 +19,7 @@ import {
 import {
   isHealthKitNativeAvailable,
 } from '../services/health.js';
+import { isHuaweiHealthNativeAvailable } from '../services/huawei-health.js';
 import { isXiaomiHealthNativeAvailable } from '../services/xiaomi-health.js';
 import type { HealthSnapshot } from '../types/health.js';
 
@@ -27,6 +28,7 @@ export type HealthClientProvider = HealthProviderId | 'auto';
 export type HealthClientOptions = {
   provider?: HealthClientProvider;
   fallbackToMock?: boolean;
+  huawei?: HuaweiHealthProviderAdapterOptions;
   xiaomi?: XiaomiHealthProviderAdapterOptions;
   adapters?: HealthProviderAdapter[];
 };
@@ -55,6 +57,16 @@ function resolveProviderFromEnvironment(options: HealthClientOptions): HealthPro
     return 'apple-healthkit';
   }
 
+  const huaweiConfigured =
+    Boolean(options.huawei?.readSnapshot) ||
+    Boolean(options.huawei?.readRawData) ||
+    Boolean(options.huawei?.requestAuthorization) ||
+    Boolean(options.huawei?.isAvailable);
+
+  if (isHuaweiHealthNativeAvailable() || huaweiConfigured) {
+    return 'huawei-health';
+  }
+
   const xiaomiConfigured =
     Boolean(options.xiaomi?.readSnapshot) ||
     Boolean(options.xiaomi?.requestAuthorization) ||
@@ -69,13 +81,9 @@ function resolveProviderFromEnvironment(options: HealthClientOptions): HealthPro
 
 function buildAdapters(options: HealthClientOptions): HealthProviderAdapter[] {
   const defaults: HealthProviderAdapter[] = [
-    options.provider === 'apple-healthkit'
-      ? createAppleHealthKitProviderAdapter()
-      : appleHealthKitProviderAdapter,
+    options.provider === 'apple-healthkit' ? createAppleHealthKitProviderAdapter() : appleHealthKitProviderAdapter,
+    createHuaweiHealthProviderAdapter(options.huawei),
     createXiaomiHealthProviderAdapter(options.xiaomi),
-    options.provider === 'huawei-health'
-      ? createHuaweiHealthProviderAdapter()
-      : huaweiHealthProviderAdapter,
   ];
 
   return options.adapters ? [...defaults, ...options.adapters] : defaults;

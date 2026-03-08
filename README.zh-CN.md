@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>面向跨端健康应用的 Lynx 健康 SDK 启动项目（支持 Apple + Xiaomi）。</strong>
+  <strong>面向跨端健康应用的 Lynx 健康 SDK 启动项目（支持 Apple + Huawei + Xiaomi）。</strong>
 </p>
 
 <p align="center">
@@ -18,7 +18,7 @@
 
 ## 项目简介
 
-HealthDataToLynx 是一个开源起步项目，用最小实现把多健康数据源（当前支持 **Apple HealthKit**，并可扩展 **Xiaomi Health**）桥接到 **Lynx** 界面层。
+HealthDataToLynx 是一个开源起步项目，用最小实现把多健康数据源（当前支持 **Apple HealthKit**、**Huawei Health**、**Xiaomi Health**）桥接到 **Lynx** 界面层。
 
 它适合以下目标：
 
@@ -26,7 +26,7 @@ HealthDataToLynx 是一个开源起步项目，用最小实现把多健康数据
 - 一键授权并读取 iOS 健康数据；
 - 与 `react-native-health` 保持 API 一致性；
 - 统一 TypeScript 数据类型约束；
-- 后续平滑扩展到华为/小米等数据源。
+- 后续继续平滑扩展到 Health Connect 等数据源。
 
 ## 核心能力
 
@@ -35,7 +35,11 @@ HealthDataToLynx 是一个开源起步项目，用最小实现把多健康数据
 - 内置 **小米健康适配器**：
   - 可直接对接原生 `XiaomiHealthManager` 模块
   - 也支持通过 Hook 注入你自己的小米后端拉取逻辑
-- 完整类型化数据结构：活动、睡眠、心脏、血氧、运动记录
+- 内置 **华为健康适配器**：
+  - 可直接对接原生 `HuaweiHealthManager` 模块
+  - 也支持通过 Hook 注入原始华为 Health Kit 数据，并在 SDK 内做标准化
+  - 对齐华为最新睡眠记录与睡眠呼吸记录字段
+- 完整类型化数据结构：活动、睡眠、心脏、血氧、体征、运动记录
 - **默认包含血糖数据**（最新值 + 近7天序列）
 - 在 Lynx Explorer 下可使用 Mock 数据回退
 - 统一客户端调用：`createHealthClient` / `quickReadHealthSnapshot`
@@ -63,11 +67,13 @@ HealthDatatoLynx/
     App.css
     lib/client.ts
     services/health.ts
+    services/huawei-health.ts
     services/xiaomi-health.ts
     services/react-native-health.ts
     types/health.ts
     adapters/provider.ts
     adapters/apple-healthkit.ts
+    adapters/huawei-health.ts
     adapters/xiaomi-health.ts
 ```
 
@@ -94,25 +100,25 @@ npm install health-data-to-lynx
 import { quickReadHealthSnapshot, readHealthSnapshot } from 'health-data-to-lynx';
 
 const snapshot = await quickReadHealthSnapshot({
-  provider: 'auto', // 自动优先 Apple，再尝试 Xiaomi
+  provider: 'auto', // 自动优先 Apple，再尝试 Huawei，再尝试 Xiaomi
 });
 
 // 同行为别名：
 const snapshot2 = await readHealthSnapshot({ provider: 'apple-healthkit' });
 ```
 
-按 Provider 创建客户端（Apple / Xiaomi）：
+按 Provider 创建客户端（Apple / Huawei / Xiaomi）：
 
 ```ts
 import { createHealthClient } from 'health-data-to-lynx';
 
 const client = createHealthClient({
-  provider: 'xiaomi-health',
-  xiaomi: {
-    // 替换为你自己的小米数据连接器（通常走后端）。
+  provider: 'huawei-health',
+  huawei: {
+    // 替换为你自己的华为数据连接器（通常走后端）。
     isAvailable: async () => true,
     requestAuthorization: async () => true,
-    readSnapshot: async () => await getXiaomiSnapshotFromBackend(),
+    readRawData: async () => await getHuaweiHealthKitPayloadFromBackend(),
   },
 });
 
@@ -162,6 +168,41 @@ HealthKit.initHealthKit(
    - `NSHealthShareUsageDescription`
    - `NSHealthUpdateUsageDescription`（未来需要写入时再启用）
 
+## 华为健康接入
+
+支持两种接入方式：
+
+1. 原生 Lynx Bridge：
+   - 在宿主中注册名为 `HuaweiHealthManager` 的原生模块；
+   - 暴露与 HealthKit 风格一致的方法：
+     - `isHealthDataAvailable`
+     - `requestAuthorization`
+     - `getHealthSnapshot`
+2. Hook 注入连接器：
+   - 在 `createHealthClient` 里传入 `huawei.isAvailable / requestAuthorization / readSnapshot / readRawData`
+   - `readSnapshot` 可直接返回标准化后的 `HealthSnapshot`
+   - `readRawData` 可直接返回华为官方类型命名的数据，例如：
+     - `DT_CONTINUOUS_STEPS_DELTA`
+     - `DT_INSTANTANEOUS_BLOOD_PRESSURE`
+     - `DT_HEALTH_RECORD_SLEEP`
+     - `DT_HEALTH_RECORD_VENTILATOR`
+
+当前仓库对齐的华为官方最新字段范围包括：
+
+- 原子采样数据：
+  - steps、distance、calories、exercise intensity v2、altitude、height、weight
+  - heart rate、resting heart rate、SpO2、blood glucose、blood pressure
+  - stress、body temperature、skin temperature、VO2Max
+- 健康记录：
+  - 睡眠记录字段：`fall_asleep_time`、`wakeup_time`、`all_sleep_time`、`light_sleep_time`、`deep_sleep_time`、`dream_time`、`sleep_score`、`sleep_type`
+  - 睡眠呼吸记录字段：`sysMode`、`sysSessionDate`、`eventAhi`、`sysDuration`、`lumisTidvolMedian`、`clinicalRespRateMedian`、`maskOff`、`hypoventilationIndex`、`obstructiveApneaIndex`、`allEventTimes`
+
+本次对齐使用的华为环境要求：
+
+- Android `7.0` 到 `16`（API `24` 到 `36`）
+- HMS Core `5.0.4.300+`
+- 华为运动健康 App `11.0.0.512+`
+
 ## 小米健康接入
 
 支持两种接入方式：
@@ -184,9 +225,13 @@ HealthKit.initHealthKit(
 - `oxygen.bloodOxygenPercent`
 - `oxygen.bloodOxygenSeriesLast24h[]`
 - `metabolic.bloodGlucoseMgDl`
-- `metabolic.bloodGlucoseSeriesLast7d[]`（mmol/L）
+- `metabolic.bloodGlucoseSeriesLast7d[]`（共享契约里按 mg/dL）
 - `sleep.asleepMinutesLast36h`
 - `sleep.apnea.eventCountLast30d`
+- `sleep.apnea.ahiLastSession`
+- `sleep.lightSleepMinutes`
+- `body.stressScore`
+- `body.skinTemperatureCelsius`
 - `workouts[]`
 
 ## 相关开源参考
@@ -200,7 +245,7 @@ HealthKit.initHealthKit(
 
 ## 路线图
 
-- [ ] 华为健康适配器
+- [x] 华为健康适配器（原生桥接 + 原始数据标准化）
 - [x] 小米健康适配器（原生桥接 + 自定义连接器 Hook）
 - [ ] Android Health Connect 适配器
 - [ ] 定时同步与后端上传示例

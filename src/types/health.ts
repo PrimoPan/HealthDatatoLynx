@@ -43,6 +43,32 @@ export type HealthSleepApneaData = {
   eventCountLast30d?: number;
   durationMinutesLast30d?: number;
   latestEventAt?: string;
+  ahiLastSession?: number;
+  therapyModeCode?: number;
+  therapyMode?: string;
+  sessionDate?: string;
+  sessionDurationMinutes?: number;
+  tidalVolumeMedianMl?: number;
+  tidalVolumeP95Ml?: number;
+  tidalVolumeMaxMl?: number;
+  respiratoryRateMedianBrpm?: number;
+  respiratoryRateP95Brpm?: number;
+  respiratoryRateMaxBrpm?: number;
+  inspirationExpirationRatioMedian?: number;
+  inspirationExpirationRatioP95?: number;
+  inspirationExpirationRatioMax?: number;
+  maskOffCount?: number;
+  hypoventilationIndex?: number;
+  obstructiveApneaIndex?: number;
+  pressureBelow95?: number;
+  hypoventilationEventCount?: number;
+  snoringEventCount?: number;
+  obstructiveApneaEventCount?: number;
+  centralApneaEventCount?: number;
+  airflowLimitationEventCount?: number;
+  massiveLeakEventCount?: number;
+  unknownEventCount?: number;
+  allEventCount?: number;
   classification?: 'notElevated' | 'elevated' | 'unknown';
   riskLevel?: HealthSleepApneaRiskLevel;
   reminder?: string;
@@ -65,10 +91,14 @@ export type HealthActivityData = {
   basalEnergyKcalToday?: number;
   flightsClimbedToday?: number;
   exerciseMinutesToday?: number;
+  exerciseIntensityScoreToday?: number;
   standHoursToday?: number;
+  altitudeMeters?: number;
   stepsHourlySeriesToday?: HealthTrendPoint[];
   activeEnergyHourlySeriesToday?: HealthTrendPoint[];
   exerciseMinutesHourlySeriesToday?: HealthTrendPoint[];
+  exerciseIntensitySeriesToday?: HealthTrendPoint[];
+  altitudeSeriesLast24h?: HealthTrendPoint[];
 };
 
 export type HealthSleepData = {
@@ -77,6 +107,18 @@ export type HealthSleepData = {
   awakeMinutesLast36h?: number;
   sampleCountLast36h?: number;
   sleepScore?: number;
+  fellAsleepAt?: string;
+  wokeUpAt?: string;
+  wentToBedAt?: string;
+  offBedAt?: string;
+  prepareSleepMinutes?: number;
+  allSleepMinutes?: number;
+  lightSleepMinutes?: number;
+  deepSleepMinutes?: number;
+  dreamMinutes?: number;
+  wakeUpCount?: number;
+  deepSleepSegmentCount?: number;
+  sleepType?: string | number;
   stageMinutesLast36h?: HealthSleepStageMinutes;
   samplesLast36h?: HealthSleepSample[];
   apnea?: HealthSleepApneaData;
@@ -121,11 +163,17 @@ export type HealthEnvironmentData = {
 };
 
 export type HealthBodyData = {
+  heightCm?: number;
   respiratoryRateBrpm?: number;
+  stressScore?: number;
   bodyTemperatureCelsius?: number;
+  skinTemperatureCelsius?: number;
   bodyMassKg?: number;
+  heightSeriesLast30d?: HealthTrendPoint[];
   respiratoryRateSeriesLast7d?: HealthTrendPoint[];
+  stressSeriesLast7d?: HealthTrendPoint[];
   bodyTemperatureSeriesLast7d?: HealthTrendPoint[];
+  skinTemperatureSeriesLast7d?: HealthTrendPoint[];
   bodyMassSeriesLast30d?: HealthTrendPoint[];
 };
 
